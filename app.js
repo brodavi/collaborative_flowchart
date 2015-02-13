@@ -14,6 +14,9 @@ server.listen(config.port);
 var jsonfile = require(config.contentBase + config.file);
 var id = jsonfile['lastid'];
 var graph = jsonfile['graph'];
+var chat = jsonfile['chat'];
+
+console.log('starting with chat :', chat);
 
 function handleError(error, res) {
   if (res) {
@@ -27,7 +30,7 @@ function handleError(error, res) {
 setInterval(function() {
     fs.writeFile(
 	config.contentBase + config.file,
-	JSON.stringify({ 'lastid': id, 'graph': graph })
+	JSON.stringify({ 'lastid': id, 'graph': graph, 'chat': chat })
     );
 
     var exec = require('child_process').exec;
@@ -50,6 +53,7 @@ setInterval(function() {
 	    'cd ' + config.contentBase + '; ' +
 		'git commit -a -m ' + message + '; ',
 	    function (error, stdout, stderr) {
+		console.log('made a commit on ' + new Date());
 		if (stderr) {
 		    return handleError(stderr);
 		}
@@ -69,7 +73,8 @@ io.on('connection', function (socket) {
     io.emit('usercount', users);
 
     socket.emit('graph', graph);
-    // when a new user connects, send existing graph
+    socket.emit('chat', chat);
+    // when a new user connects, send existing graph and chat
 
     socket.on('temp id', function (data) {
 	socket.emit('new id', {tempId: data.tempId, id: id++});
@@ -78,6 +83,11 @@ io.on('connection', function (socket) {
     socket.on('graph', function (data) {
 	socket.broadcast.emit('graph', data);
 	graph = data;
+    }); // to all except sender
+
+    socket.on('chat', function (data) {
+	socket.broadcast.emit('chat', data);
+	chat = data;
     }); // to all except sender 
 
     socket.on('disconnect', function () {
